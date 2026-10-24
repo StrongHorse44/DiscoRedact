@@ -5,7 +5,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
@@ -19,6 +21,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebViewDatabase
 import app.discoredact.core.executor.HeaderSet
+import app.discoredact.core.signin.DesktopLayout
 import app.discoredact.core.signin.SignInCapture
 import app.discoredact.core.signin.SignInHosts
 import java.io.ByteArrayInputStream
@@ -107,9 +110,13 @@ class SignInPage(
     /** Main thread only: true from [open] until [end]. */
     val isOpen: Boolean get() = webView != null
 
-    /** Main thread only: makes the WebView and starts the login page. */
+    /**
+     * Main thread only: makes the WebView and starts the login page. With [desktop] the page is laid out at
+     * [DesktopLayout.WIDTH_CSS_PX] and scaled to fit (Discord shows its QR-code login only in its wide layout); the
+     * returned view is then a frame holding the WebView. Nothing about the requests changes.
+     */
     @SuppressLint("SetJavaScriptEnabled") // Discord's login page needs script and DOM storage; the app adds no script of its own.
-    fun open(context: Context): WebView {
+    fun open(context: Context, desktop: Boolean = false): View {
         val view = WebView(context)
         // Compose adds the view with wrap-content params, and Chromium lays the page out from those, not from the size
         // the view is measured at: a wrap-content height means a zero-height page, and a page built on `height: 100%`
@@ -184,8 +191,9 @@ class SignInPage(
         }
         webView = view
         openedIn = context
+        val shown: View = if (desktop) DesktopFrame(context, view) else view
         view.loadUrl(SignInHosts.LOGIN_PAGE)
-        return view
+        return shown
     }
 
     /** Main thread only. Ends the page: refuses everything from now on, then clears and destroys it. Safe to call twice. */
@@ -274,6 +282,30 @@ class SignInPage(
         if (last is PageStatus.Lacking || last == PageStatus.HeadersHidden) return
         val n = admitted.get()
         status(if (documentFinished) PageStatus.Loaded(n) else PageStatus.Loading(n))
+    }
+
+    /**
+     * Holds the WebView at the desktop width with an exact height (never wrap-content: see [open]) and scales it from
+     * its top-left corner to fill this frame. Touches are mapped through the scale by the platform's view dispatch.
+     */
+    private class DesktopFrame(context: Context, private val page: WebView) : FrameLayout(context) {
+        init {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            page.pivotX = 0f
+            page.pivotY = 0f
+            addView(page, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            val fit = DesktopLayout.fit(w, h, resources.displayMetrics.density) ?: return
+            // Applied after this layout pass, not inside it.
+            post {
+                page.layoutParams = LayoutParams(fit.widthPx, fit.heightPx)
+                page.scaleX = fit.scale
+                page.scaleY = fit.scale
+            }
+        }
     }
 
     private object WorkerFilter : ServiceWorkerClient() {

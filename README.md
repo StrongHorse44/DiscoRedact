@@ -40,6 +40,11 @@ in here" is off while a run is active or a wipe is running. The filter's known l
 in the page and reads request headers only. The executor, the transport and its `discord.com` allowlist are unchanged:
 deletes still go through the app's own client. The cURL paste stays as the fallback.
 
+On the notice, "Desktop page (QR code)" shows Discord's wide layout, scaled to fit, which has the QR code: scan it with
+the Discord app on another device signed in as the account (Settings, Scan QR Code), confirm, and the capture runs as
+usual. Use it when the password is not to hand; a passkey cannot run inside an app's WebView. The QR login's own socket
+is a known limit of the filter (`gate/README.md`).
+
 ## Fetch from Discord
 
 Channels, Import, "Fetch from Discord" shows a notice first, then reads with the stored headers, one request at a time:

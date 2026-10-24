@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -22,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,8 @@ fun SignInScreen(vm: AppViewModel) {
     var status by remember { mutableStateOf("Nothing is loaded yet.") }
     val blocked = remember { mutableStateListOf<String>() }
     var stored by remember { mutableStateOf(false) }
+    // Discord's desktop layout (the QR-code login), chosen on the notice before the page loads.
+    var desktop by remember { mutableStateOf(false) }
     // What the Ended phase says; it claims a deletion only when the clear reported no failed step.
     var endText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -82,6 +87,8 @@ fun SignInScreen(vm: AppViewModel) {
             HorizontalDivider()
             when (phase) {
                 Phase.Notice -> Notice(
+                    desktop = desktop,
+                    onDesktop = { desktop = it },
                     onLoad = {
                         phase = Phase.Opening
                         status = "Opening the sign-in page."
@@ -119,6 +126,7 @@ fun SignInScreen(vm: AppViewModel) {
                         ).joinToString(" ")
                     },
                     onClearFailed = vm::signInClearFailed,
+                    desktop = desktop,
                     modifier = Modifier.weight(1f).fillMaxWidth().imePadding(),
                 )
                 Phase.Ended -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,7 +152,7 @@ private fun statusLine(s: PageStatus): String = when (s) {
 }
 
 @Composable
-private fun Notice(onLoad: () -> Unit) {
+private fun Notice(desktop: Boolean, onDesktop: (Boolean) -> Unit, onLoad: () -> Unit) {
     Column(
         Modifier.padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -168,6 +176,18 @@ private fun Notice(onLoad: () -> Unit) {
                 "minutes: the page is closed after two minutes in the background. Nothing loads before you tap the button.",
             style = MaterialTheme.typography.bodyMedium,
         )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Desktop page (QR code)", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Shows Discord's wide layout, scaled to fit, which has a QR code to scan from the Discord app on " +
+                        "another device signed in as this account. Text is small. The QR login talks to Discord over a " +
+                        "connection the host list cannot see (a known limit of the filter).",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(checked = desktop, onCheckedChange = onDesktop)
+        }
         Button(onClick = onLoad, modifier = Modifier.fillMaxWidth()) { Text("Load the sign-in page") }
     }
 }
@@ -185,6 +205,7 @@ private fun Page(
     onCaptured: (HeaderSet, List<String>) -> Unit,
     onBackground: (List<String>) -> Unit,
     onClearFailed: (List<String>) -> Unit,
+    desktop: Boolean,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -226,6 +247,6 @@ private fun Page(
             if (failed.isNotEmpty()) onClearFailed(failed)
         }
     }
-    AndroidView(factory = { c -> page.open(c) }, modifier = modifier)
+    AndroidView(factory = { c -> page.open(c, desktop) }, modifier = modifier)
 }
 

@@ -114,13 +114,18 @@ of `:app` and `:core` still names no network API.
 Known limits of the WebView filter. The filter refuses every request the WebView API shows it; what the API does not
 show it, it cannot refuse or list under Blocked:
 
-- a WebSocket the page opens (Discord's login page may open its QR-login socket before sign-in, and the client opens
-  its gateway socket after it);
+- a WebSocket the page opens (Discord's login page opens its QR-login socket to `remote-auth-gateway.discord.gg`, and
+  from 0.3.1 the sign-in screen's desktop layout is how that QR code is shown and used; the client opens its gateway
+  socket after sign-in);
 - a redirect of a subresource or a fetch/XHR from an admitted host to another host (main-frame redirects do reach the
   navigation check, which refuses them);
 - preconnect and DNS prefetch (lookups and handshakes with no request);
 - WebRTC (STUN/TURN over UDP), and WebTransport;
 - the WebView provider's own traffic (metrics, variations, component updates; off on GrapheneOS's Vanadium).
+
+The desktop layout (0.3.1, `DesktopLayout` in `:core`) lays the page out at 1280 CSS pixels and scales it to fit the
+screen, because Discord draws its QR-code login only in its wide layout. It changes the size the page is given and
+nothing else: the same user agent, no script, no new type in the baseline (`FrameLayout` is not a network type).
 
 Closing the page the moment the capture lands, whenever the screen is left, and two minutes after the app goes to the
 background, limits these; it does not prevent them. The app's own client never opens any of them.
