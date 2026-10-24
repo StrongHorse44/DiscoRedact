@@ -21,7 +21,8 @@ executor rules; 11-20 are the owner's program-wide rules. Changing any rule here
    the QR-code login's to `remote-auth-gateway.discord.gg`, a redirect of a subresource to another host, preconnect and
    DNS prefetch, WebRTC) it cannot refuse, which closing the page at the capture limits but does not prevent; it exists
    only to capture the five headers and is cleared after each capture. Its optional desktop layout changes only the
-   size the page is laid out at, never a request.
+   size the page is laid out at: the app adds, alters or admits no request because of it (the page's own requests
+   follow its layout, such as the QR socket above).
 3. **One request in flight, always.** One worker, sequential, no parallelism, no "fast mode", no second account.
 4. **Message IDs come only from the data package or from the account's own DM history** read through the three
    endpoints of rule 1 and filtered to the account's own author id in `:core` (a test proves it). The importer reads
